@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slangify"
+version = "0.1.0"
+description = "Discord bot that explains slang in a referenced message."
+requires-python = ">=3.11"
+dependencies = [
+    "discord.py>=2.3,<3.0",
+    "anthropic>=0.40",
+    "aiohttp>=3.9",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+slangify = "slangify.bot:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
