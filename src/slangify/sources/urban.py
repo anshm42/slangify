@@ -40,7 +40,7 @@ def _tokenize(text: str) -> list[str]:
     return tokens[:MAX_TERMS]
 
 
-async def _fetch_term(session: aiohttp.ClientSession, term: str) -> Definition | None:
+async def fetch_term(session: aiohttp.ClientSession, term: str) -> Definition | None:
     try:
         async with session.get(URBAN_API, params={"term": term}, timeout=aiohttp.ClientTimeout(total=10)) as resp:
             if resp.status != 200:
@@ -60,10 +60,13 @@ async def _fetch_term(session: aiohttp.ClientSession, term: str) -> Definition |
     return Definition(term=term, definition=definition, example=example)
 
 
-async def lookup(text: str) -> list[Definition]:
-    terms = _tokenize(text)
+async def fetch_terms(terms: list[str]) -> list[Definition]:
     if not terms:
         return []
     async with aiohttp.ClientSession() as session:
-        results = await asyncio.gather(*(_fetch_term(session, t) for t in terms))
+        results = await asyncio.gather(*(fetch_term(session, t) for t in terms))
     return [r for r in results if r is not None]
+
+
+async def lookup(text: str) -> list[Definition]:
+    return await fetch_terms(_tokenize(text))

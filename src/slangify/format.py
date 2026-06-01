@@ -8,6 +8,7 @@ MAX_FIELDS = 5
 SOURCE_LABELS = {
     "urban": "Urban Dictionary",
     "claude": "Claude",
+    "hybrid": "Claude → Urban Dictionary",
 }
 
 

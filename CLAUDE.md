@@ -16,13 +16,25 @@ Slangify is a Discord bot that explains slang in a referenced message. The repo 
 
 ## Trigger semantics
 
-The bot is triggered by **reply + @mention**, not slash commands. Flow:
+Two triggers, both supported:
 
-1. User replies to some message AND @mentions the bot in their reply.
-2. `on_message` handler: ignore bots, require `bot.user in message.mentions` and `message.reference is not None`.
-3. Fetch the replied-to message via `message.channel.fetch_message(message.reference.message_id)`.
-4. Parse the mention text for a source flag: `urban` → Urban Dictionary, `claude` → Claude, default → Claude.
-5. Reply with an embed in the same channel via `message.reply(...)`.
+**A. Server: reply + @mention** (`on_message`)
+1. Ignore bots; require `bot.user in message.mentions` and `message.reference is not None`.
+2. Fetch replied-to message via `message.channel.fetch_message(message.reference.message_id)`.
+3. Parse mention text for source flag (`urban` / `claude` / `hybrid`, default `hybrid`) via `trigger.parse`.
+4. Reply with embed via `message.reply(...)`.
+
+**B. User-app message context menu** (`app_commands.context_menu`)
+- Three context menu commands registered: `Define slang` (hybrid), `Define slang (Claude)`, `Define slang (Urban)`.
+- All decorated with `@app_commands.allowed_installs(guilds=True, users=True)` and `@app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)` so they work in DMs/GDMs as a user-installed app.
+- Must `interaction.response.defer(thinking=True)` before lookup (3s response window) then `interaction.followup.send(embed=...)`.
+- Commands synced on `on_ready` via `tree.sync()`.
+
+## Sources
+
+- `sources/hybrid.py` — default. Uses `claude.extract_terms(text)` then `urban.fetch_terms(terms)` to combine semantic filtering with crowdsourced definitions.
+- `sources/claude.py` — `lookup(text)` returns terms + defs from Claude; `extract_terms(text)` returns just the term list. Both share `_call()` and the cached system prompt.
+- `sources/urban.py` — `lookup(text)` tokenizes + queries (legacy path); `fetch_terms(terms)` queries pre-supplied terms in parallel; `fetch_term(session, term)` is the single-term primitive.
 
 ## Required env vars
 
@@ -39,11 +51,12 @@ Loaded from `.env` at startup (fail fast if missing):
 
 ```
 src/slangify/
-├── bot.py         (entry, on_message handler)
+├── bot.py         (entry, on_message handler, context menu registration)
 ├── trigger.py     (parse @mention + reply, extract source flag)
 ├── sources/
 │   ├── urban.py   (Urban Dictionary lookup)
-│   └── claude.py  (Claude slang explanation, claude-haiku-4-5)
+│   ├── claude.py  (Claude slang explanation, claude-haiku-4-5)
+│   └── hybrid.py  (Claude extracts terms → Urban defines)
 └── format.py      (Discord embed builder)
 ```
 

@@ -3,11 +3,13 @@ import os
 import sys
 
 import discord
+from discord import app_commands
 from dotenv import load_dotenv
 
 from .format import build_embed
 from .sources import Definition
 from .sources import claude as claude_source
+from .sources import hybrid as hybrid_source
 from .sources import urban as urban_source
 from .trigger import parse
 
@@ -27,19 +29,70 @@ def _load_env() -> str:
 async def _lookup(source: str, text: str) -> list[Definition]:
     if source == "urban":
         return await urban_source.lookup(text)
-    return await claude_source.lookup(text)
+    if source == "claude":
+        return await claude_source.lookup(text)
+    return await hybrid_source.lookup(text)
 
 
-def _build_client() -> discord.Client:
+async def _define_via_interaction(interaction: discord.Interaction, message: discord.Message, source: str) -> None:
+    text = (message.content or "").strip()
+    if not text:
+        await interaction.response.send_message("That message has no text to define.", ephemeral=True)
+        return
+
+    await interaction.response.defer(thinking=True)
+    try:
+        definitions = await _lookup(source, text)
+    except Exception:
+        log.exception("Lookup failed (source=%s)", source)
+        await interaction.followup.send("Something went wrong looking up that slang.", ephemeral=True)
+        return
+
+    if not definitions:
+        await interaction.followup.send("No slang found in that message.", ephemeral=True)
+        return
+
+    embed = build_embed(definitions, source)
+    await interaction.followup.send(embed=embed)
+
+
+def _register_context_menus(tree: app_commands.CommandTree) -> None:
+    @tree.context_menu(name="Define slang")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def define_slang(interaction: discord.Interaction, message: discord.Message) -> None:
+        await _define_via_interaction(interaction, message, "hybrid")
+
+    @tree.context_menu(name="Define slang (Claude)")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def define_slang_claude(interaction: discord.Interaction, message: discord.Message) -> None:
+        await _define_via_interaction(interaction, message, "claude")
+
+    @tree.context_menu(name="Define slang (Urban)")
+    @app_commands.allowed_installs(guilds=True, users=True)
+    @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+    async def define_slang_urban(interaction: discord.Interaction, message: discord.Message) -> None:
+        await _define_via_interaction(interaction, message, "urban")
+
+
+def _build_client() -> tuple[discord.Client, app_commands.CommandTree]:
     intents = discord.Intents.default()
     intents.message_content = True
     intents.messages = True
     intents.guilds = True
     client = discord.Client(intents=intents)
+    tree = app_commands.CommandTree(client)
+    _register_context_menus(tree)
 
     @client.event
     async def on_ready() -> None:
         log.info("Logged in as %s (id=%s)", client.user, getattr(client.user, "id", "?"))
+        try:
+            synced = await tree.sync()
+            log.info("Synced %d application commands", len(synced))
+        except Exception:
+            log.exception("Failed to sync application commands")
 
     @client.event
     async def on_message(message: discord.Message) -> None:
@@ -78,13 +131,13 @@ def _build_client() -> discord.Client:
         embed = build_embed(definitions, trigger.source)
         await message.reply(embed=embed, mention_author=False)
 
-    return client
+    return client, tree
 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     token = _load_env()
-    client = _build_client()
+    client, _tree = _build_client()
     client.run(token, log_handler=None)
 
 

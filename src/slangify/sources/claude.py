@@ -20,6 +20,15 @@ SYSTEM_PROMPT = (
     "Do not include commentary, code fences, or prose outside the JSON."
 )
 
+EXTRACT_PROMPT = (
+    "You identify slang, internet jargon, and non-literal expressions in a user-provided "
+    "message and return ONLY the terms (no definitions). "
+    "Output ONLY a JSON array of strings, lowercased, deduplicated, max 5 items. "
+    "Multi-word phrases are allowed (e.g. \"no cap\", \"glow up\"). "
+    "If no slang or jargon is present, output an empty JSON array: []. "
+    "Do not include commentary, code fences, or prose outside the JSON."
+)
+
 _client: AsyncAnthropic | None = None
 
 
@@ -30,7 +39,7 @@ def _get_client() -> AsyncAnthropic:
     return _client
 
 
-def _extract_json_array(text: str) -> list[dict]:
+def _parse_json_array(text: str) -> list:
     text = text.strip()
     match = re.search(r"\[.*\]", text, re.DOTALL)
     if not match:
@@ -41,10 +50,10 @@ def _extract_json_array(text: str) -> list[dict]:
         return []
     if not isinstance(parsed, list):
         return []
-    return [item for item in parsed if isinstance(item, dict)]
+    return parsed
 
 
-async def lookup(text: str) -> list[Definition]:
+async def _call(system_prompt: str, text: str) -> str:
     client = _get_client()
     try:
         resp = await client.messages.create(
@@ -53,7 +62,7 @@ async def lookup(text: str) -> list[Definition]:
             system=[
                 {
                     "type": "text",
-                    "text": SYSTEM_PROMPT,
+                    "text": system_prompt,
                     "cache_control": {"type": "ephemeral"},
                 }
             ],
@@ -61,14 +70,34 @@ async def lookup(text: str) -> list[Definition]:
         )
     except Exception:
         log.exception("Claude API call failed")
-        return []
+        return ""
+    return "".join(block.text for block in resp.content if getattr(block, "type", None) == "text")
 
-    body = "".join(block.text for block in resp.content if getattr(block, "type", None) == "text")
-    items = _extract_json_array(body)
+
+async def lookup(text: str) -> list[Definition]:
+    body = await _call(SYSTEM_PROMPT, text)
+    items = [item for item in _parse_json_array(body) if isinstance(item, dict)]
     out: list[Definition] = []
     for item in items:
         term = (item.get("term") or "").strip()
         definition = (item.get("definition") or "").strip()
         if term and definition:
             out.append(Definition(term=term, definition=definition))
+    return out
+
+
+async def extract_terms(text: str) -> list[str]:
+    body = await _call(EXTRACT_PROMPT, text)
+    items = _parse_json_array(body)
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in items:
+        if not isinstance(item, str):
+            continue
+        term = item.strip().lower()
+        if term and term not in seen:
+            seen.add(term)
+            out.append(term)
+        if len(out) >= 5:
+            break
     return out
