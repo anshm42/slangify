@@ -4,15 +4,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Slangify is a Discord bot that explains slang in a referenced message. The repo is currently empty (no code yet) — implementation follows the design in `/Users/am/.claude/plans/i-want-to-make-cryptic-noodle.md`.
+Slangify is a Discord bot that explains slang in a referenced message. Implemented as an installable package under `src/slangify/`; console entry point `slangify.bot:main`.
 
-## Stack (planned)
+## Stack
 
 - Python 3.11+
 - `discord.py` 2.x — bot framework
 - `anthropic` — Claude SDK (slang definitions via LLM)
 - `aiohttp` — Urban Dictionary API calls
 - `python-dotenv` — load secrets
+
+## Build & run
+
+- Install editable (with dev deps): `pip install -e ".[dev]"` (in a venv).
+- Run: `slangify` (console script) or `python -m slangify.bot`.
+- Tests: `pytest` (pure-function unit tests in `tests/`, no network). No lint config yet.
 
 ## Trigger semantics
 
@@ -47,18 +53,21 @@ Loaded from `.env` at startup (fail fast if missing):
 
 `message_content` is required (privileged — must be enabled in the Discord developer portal). Also enable `guilds` and `messages`.
 
-## Planned layout
+## Layout
 
 ```
 src/slangify/
 ├── bot.py         (entry, on_message handler, context menu registration)
 ├── trigger.py     (parse @mention + reply, extract source flag)
 ├── sources/
+│   ├── __init__.py (shared Definition dataclass)
 │   ├── urban.py   (Urban Dictionary lookup)
 │   ├── claude.py  (Claude slang explanation, claude-haiku-4-5)
 │   └── hybrid.py  (Claude extracts terms → Urban defines)
 └── format.py      (Discord embed builder)
 ```
+
+The shared `Definition` dataclass (term / definition / example) lives in `sources/__init__.py` — all sources return `list[Definition]`.
 
 ## Conventions
 

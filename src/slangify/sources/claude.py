@@ -24,7 +24,8 @@ EXTRACT_PROMPT = (
     "You identify slang, internet jargon, and non-literal expressions in a user-provided "
     "message and return ONLY the terms (no definitions). "
     "Output ONLY a JSON array of strings, lowercased, deduplicated, max 5 items. "
-    "Multi-word phrases are allowed (e.g. \"no cap\", \"glow up\"). "
+    "Multi-word phrases are allowed and sentences are allowed (e.g. \"no cap\", \"glow up\"). "
+    "define within the context of the sentence it is used."
     "If no slang or jargon is present, output an empty JSON array: []. "
     "Do not include commentary, code fences, or prose outside the JSON."
 )
