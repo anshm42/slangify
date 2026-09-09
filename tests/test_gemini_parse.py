@@ -1,4 +1,4 @@
-from slangify.sources.claude import _parse_json_array
+from slangify.sources.gemini import _parse_json_array
 
 
 def test_plain_array():
@@ -31,6 +31,4 @@ def test_invalid_json_returns_empty():
 
 
 def test_non_list_json_returns_empty():
-    # regex grabs the inner [...] of a dict value; still a list -> ok,
-    # but a bare object with no brackets yields []
     assert _parse_json_array('{"a": 1}') == []

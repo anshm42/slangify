@@ -15,8 +15,8 @@ def test_urban_flag():
     assert parse(_mention("urban"), BOT_ID).source == "urban"
 
 
-def test_claude_flag():
-    assert parse(_mention("claude"), BOT_ID).source == "claude"
+def test_gemini_flag():
+    assert parse(_mention("gemini"), BOT_ID).source == "gemini"
 
 
 def test_explicit_hybrid_flag():
@@ -27,9 +27,9 @@ def test_flag_is_case_insensitive():
     assert parse(_mention("URBAN"), BOT_ID).source == "urban"
 
 
-def test_urban_wins_over_claude_when_both_present():
+def test_urban_wins_over_gemini_when_both_present():
     # parse checks urban first
-    assert parse(_mention("urban claude"), BOT_ID).source == "urban"
+    assert parse(_mention("urban gemini"), BOT_ID).source == "urban"
 
 
 def test_nickname_mention_form():

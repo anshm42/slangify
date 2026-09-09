@@ -3,40 +3,36 @@ import logging
 import os
 import re
 
-from anthropic import AsyncAnthropic
+from google import genai
+from google.genai import types
 
 from . import Definition
 
 log = logging.getLogger(__name__)
 
-MODEL = "claude-haiku-4-5"
-MAX_TOKENS = 512
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 SYSTEM_PROMPT = (
     "You identify slang, internet jargon, and non-literal expressions in a user-provided "
     "message and define each term concisely (one or two sentences per term). "
-    "Output ONLY a JSON array of objects with keys `term` and `definition`. "
-    "If no slang or jargon is present, output an empty JSON array: []. "
-    "Do not include commentary, code fences, or prose outside the JSON."
+    "Output a JSON array of objects with keys `term` and `definition`. "
+    "If no slang or jargon is present, output an empty JSON array: []."
 )
 
 EXTRACT_PROMPT = (
     "You identify slang, internet jargon, and non-literal expressions in a user-provided "
-    "message and return ONLY the terms (no definitions). "
-    "Output ONLY a JSON array of strings, lowercased, deduplicated, max 5 items. "
-    "Multi-word phrases are allowed and sentences are allowed (e.g. \"no cap\", \"glow up\"). "
-    "define within the context of the sentence it is used."
-    "If no slang or jargon is present, output an empty JSON array: []. "
-    "Do not include commentary, code fences, or prose outside the JSON."
+    "message and return a JSON array of only the terms, lowercased, deduplicated, max 5 items. "
+    "Multi-word phrases are allowed (for example, \"no cap\" or \"glow up\"). "
+    "If no slang or jargon is present, output an empty JSON array: []."
 )
 
-_client: AsyncAnthropic | None = None
+_client: genai.Client | None = None
 
 
-def _get_client() -> AsyncAnthropic:
+def _get_client() -> genai.Client:
     global _client
     if _client is None:
-        _client = AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        _client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
     return _client
 
 
@@ -49,30 +45,28 @@ def _parse_json_array(text: str) -> list:
         parsed = json.loads(match.group(0))
     except json.JSONDecodeError:
         return []
-    if not isinstance(parsed, list):
-        return []
-    return parsed
+    return parsed if isinstance(parsed, list) else []
 
 
 async def _call(system_prompt: str, text: str) -> str:
-    client = _get_client()
     try:
-        resp = await client.messages.create(
+        response = await _get_client().aio.models.generate_content(
             model=MODEL,
-            max_tokens=MAX_TOKENS,
-            system=[
-                {
-                    "type": "text",
-                    "text": system_prompt,
-                    "cache_control": {"type": "ephemeral"},
-                }
-            ],
-            messages=[{"role": "user", "content": text}],
+            contents=text,
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                max_output_tokens=512,
+            ),
         )
     except Exception:
-        log.exception("Claude API call failed")
+        log.exception("Gemini API call failed")
         return ""
-    return "".join(block.text for block in resp.content if getattr(block, "type", None) == "text")
+    try:
+        return response.text or ""
+    except Exception:
+        log.exception("Gemini API returned no text")
+        return ""
 
 
 async def lookup(text: str) -> list[Definition]:

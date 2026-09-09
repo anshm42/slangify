@@ -8,14 +8,14 @@ from dotenv import load_dotenv
 
 from .format import build_embed
 from .sources import Definition
-from .sources import claude as claude_source
+from .sources import gemini as gemini_source
 from .sources import hybrid as hybrid_source
 from .sources import urban as urban_source
 from .trigger import parse
 
 log = logging.getLogger("slangify")
 
-REQUIRED_ENV = ("DISCORD_TOKEN", "ANTHROPIC_API_KEY")
+REQUIRED_ENV = ("DISCORD_TOKEN", "GEMINI_API_KEY")
 
 
 def _load_env() -> str:
@@ -29,8 +29,8 @@ def _load_env() -> str:
 async def _lookup(source: str, text: str) -> list[Definition]:
     if source == "urban":
         return await urban_source.lookup(text)
-    if source == "claude":
-        return await claude_source.lookup(text)
+    if source == "gemini":
+        return await gemini_source.lookup(text)
     return await hybrid_source.lookup(text)
 
 
@@ -63,11 +63,11 @@ def _register_context_menus(tree: app_commands.CommandTree) -> None:
     async def define_slang(interaction: discord.Interaction, message: discord.Message) -> None:
         await _define_via_interaction(interaction, message, "hybrid")
 
-    @tree.context_menu(name="Define slang (Claude)")
+    @tree.context_menu(name="Define slang (Gemini)")
     @app_commands.allowed_installs(guilds=True, users=True)
     @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
-    async def define_slang_claude(interaction: discord.Interaction, message: discord.Message) -> None:
-        await _define_via_interaction(interaction, message, "claude")
+    async def define_slang_gemini(interaction: discord.Interaction, message: discord.Message) -> None:
+        await _define_via_interaction(interaction, message, "gemini")
 
     @tree.context_menu(name="Define slang (Urban)")
     @app_commands.allowed_installs(guilds=True, users=True)

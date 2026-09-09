@@ -13,7 +13,7 @@ Mac (build) --buildx--> image (linux/amd64) --push--> ACR --pull--> ACI (runs 24
 
 - **ACR** — cloud image store (the registry: `slangifyacr`).
 - **ACI** — runs the container always-on with `--restart-policy Always`.
-- Secrets (`DISCORD_TOKEN`, `ANTHROPIC_API_KEY`) are injected at runtime as
+- Secrets (`DISCORD_TOKEN`, `GEMINI_API_KEY`) are injected at runtime as
   **secure environment variables** — never baked into the image.
 
 > **Arch note:** Apple Silicon builds ARM images by default; ACI runs x86.
@@ -90,7 +90,7 @@ az container create \
   --registry-login-server slangifyacr.azurecr.io \
   --registry-username <acr-user> \
   --registry-password <acr-pass> \
-  --secure-environment-variables DISCORD_TOKEN=<token> ANTHROPIC_API_KEY=<key> \
+  --secure-environment-variables DISCORD_TOKEN=<token> GEMINI_API_KEY=<key> \
   --restart-policy Always \
   --os-type Linux --cpu 1 --memory 1
 ```
@@ -136,8 +136,10 @@ crash-loops, the logs usually show a missing env var or an image pull error.
 
 ## Cost & longevity
 
-- ACI bills for vCPU + memory while running. `--cpu 0.5 --memory 0.5` is enough
-  for this bot and cheaper. `az container stop` when idle to conserve credit.
+- ACI bills for vCPU + memory while running. The `--cpu 1 --memory 1` values
+  in the create command are the smallest supported allocation for a Linux
+  container *group*, so they are the cheapest reliable always-on ACI option.
+  `az container stop` when idle to conserve credit.
 - This runs on Azure student credit, which expires. The `Dockerfile` makes the
   bot portable — the same image runs on Heroku, DigitalOcean App Platform, or
   any container host when it's time to migrate.
