@@ -1,6 +1,8 @@
 # slangify
 
 Discord bot that defines the slang in a replied-to message.
+## Installation
+Just click this [link](https://discord.com/oauth2/authorize?client_id=1511031862900822306) and install!
 
 ## How it works
 
