@@ -10,7 +10,8 @@ from . import Definition
 
 log = logging.getLogger(__name__)
 
-MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
+FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-3.7-flash")
 
 SYSTEM_PROMPT = (
     "You identify only slang (including regional and community-specific spoken slang), established "
@@ -60,25 +61,42 @@ def _parse_json_array(text: str) -> list:
     return parsed if isinstance(parsed, list) else []
 
 
+async def _generate(model: str, system_prompt: str, text: str):
+    return await _get_client().aio.models.generate_content(
+        model=model,
+        contents=text,
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
+            max_output_tokens=512,
+        ),
+    )
+
+
+def _is_transient_error(error: Exception) -> bool:
+    code = getattr(error, "code", None)
+    return code == 429 or isinstance(code, int) and 500 <= code < 600
+
+
 async def _call(system_prompt: str, text: str) -> str:
-    try:
-        response = await _get_client().aio.models.generate_content(
-            model=MODEL,
-            contents=text,
-            config=types.GenerateContentConfig(
-                system_instruction=system_prompt,
-                response_mime_type="application/json",
-                max_output_tokens=512,
-            ),
-        )
-    except Exception:
-        log.exception("Gemini API call failed")
-        return ""
-    try:
-        return response.text or ""
-    except Exception:
-        log.exception("Gemini API returned no text")
-        return ""
+    models = (MODEL,) if FALLBACK_MODEL == MODEL else (MODEL, FALLBACK_MODEL)
+    for index, model in enumerate(models):
+        try:
+            response = await _generate(model, system_prompt, text)
+        except Exception as error:
+            if index == 0 and _is_transient_error(error) and len(models) > 1:
+                log.warning("Gemini model %s unavailable; falling back to %s", MODEL, FALLBACK_MODEL)
+                continue
+            log.exception("Gemini API call failed (model=%s)", model)
+            return ""
+
+        try:
+            return response.text or ""
+        except Exception:
+            log.exception("Gemini API returned no text (model=%s)", model)
+            return ""
+
+    return ""
 
 
 async def lookup(text: str) -> list[Definition]:
