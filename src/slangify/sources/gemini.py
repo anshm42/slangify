@@ -13,15 +13,27 @@ log = logging.getLogger(__name__)
 MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 
 SYSTEM_PROMPT = (
-    "You identify slang, internet jargon, and non-literal expressions in a user-provided "
-    "message and define each term concisely (one or two sentences per term). "
+    "You identify only slang (including regional and community-specific spoken slang), established "
+    "internet jargon, and idiomatic or non-literal "
+    "expressions in a user-provided message. A term qualifies only when its intended meaning "
+    "differs from its ordinary dictionary meaning or requires online/community context to "
+    "understand. Do not include ordinary words, standard phrases, proper nouns, technical terms, "
+    "or simple abbreviations whose meaning is clear from the message. For example, `nize` is "
+    "Toronto slang and should be included when used with its slang meaning. When uncertain, exclude it. "
+    "Define each qualifying term concisely (one or two sentences per term). "
     "Output a JSON array of objects with keys `term` and `definition`. "
     "If no slang or jargon is present, output an empty JSON array: []."
 )
 
 EXTRACT_PROMPT = (
-    "You identify slang, internet jargon, and non-literal expressions in a user-provided "
-    "message and return a JSON array of only the terms, lowercased, deduplicated, max 5 items. "
+    "You identify only slang (including regional and community-specific spoken slang), established "
+    "internet jargon, and idiomatic or non-literal "
+    "expressions in a user-provided message. A term qualifies only when its intended meaning "
+    "differs from its ordinary dictionary meaning or requires online/community context to "
+    "understand. Do not include ordinary words, standard phrases, proper nouns, technical terms, "
+    "or simple abbreviations whose meaning is clear from the message. For example, `nize` is "
+    "Toronto slang and should be included when used with its slang meaning. When uncertain, exclude it. "
+    "Return a JSON array of only the qualifying terms, lowercased, deduplicated, max 5 items. "
     "Multi-word phrases are allowed (for example, \"no cap\" or \"glow up\"). "
     "If no slang or jargon is present, output an empty JSON array: []."
 )

@@ -1,4 +1,16 @@
-from slangify.sources.gemini import _parse_json_array
+from slangify.sources.gemini import EXTRACT_PROMPT, SYSTEM_PROMPT, _parse_json_array
+
+
+def test_prompts_exclude_non_slang_terms():
+    for prompt in (SYSTEM_PROMPT, EXTRACT_PROMPT):
+        assert "ordinary words" in prompt
+        assert "When uncertain, exclude it." in prompt
+
+
+def test_prompts_include_regional_slang():
+    for prompt in (SYSTEM_PROMPT, EXTRACT_PROMPT):
+        assert "regional and community-specific spoken slang" in prompt
+        assert "`nize` is Toronto slang" in prompt
 
 
 def test_plain_array():
