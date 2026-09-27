@@ -14,27 +14,26 @@ MODEL = os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
 FALLBACK_MODEL = os.environ.get("GEMINI_FALLBACK_MODEL", "gemini-3.7-flash")
 
 SYSTEM_PROMPT = (
-    "You identify only slang (including regional and community-specific spoken slang), established "
-    "internet jargon, and idiomatic or non-literal "
-    "expressions in a user-provided message. A term qualifies only when its intended meaning "
-    "differs from its ordinary dictionary meaning or requires online/community context to "
-    "understand. Do not include ordinary words, standard phrases, proper nouns, technical terms, "
-    "or simple abbreviations whose meaning is clear from the message. For example, `nize` is "
-    "Toronto slang and should be included when used with its slang meaning. When uncertain, exclude it. "
+    "Find every word or phrase in a user-provided message that is not ordinary, everyday Standard "
+    "English for a typical speaker. Include slang, regional and community-specific speech, internet "
+    "jargon, dialect, non-standard spellings, code-switched terms, uncommon abbreviations, technical "
+    "or community terms, and idioms. Favor recall: include a term whenever it might be unfamiliar or "
+    "non-standard, even if uncertain. For example, `nize` is Toronto slang and should be included. "
+    "Exclude only proper names, URLs, @mentions, emojis, pure numbers, and ordinary English words "
+    "or phrases. "
     "Define each qualifying term concisely (one or two sentences per term). "
     "Output a JSON array of objects with keys `term` and `definition`. "
     "If no slang or jargon is present, output an empty JSON array: []."
 )
 
 EXTRACT_PROMPT = (
-    "You identify only slang (including regional and community-specific spoken slang), established "
-    "internet jargon, and idiomatic or non-literal "
-    "expressions in a user-provided message. A term qualifies only when its intended meaning "
-    "differs from its ordinary dictionary meaning or requires online/community context to "
-    "understand. Do not include ordinary words, standard phrases, proper nouns, technical terms, "
-    "or simple abbreviations whose meaning is clear from the message. For example, `nize` is "
-    "Toronto slang and should be included when used with its slang meaning. When uncertain, exclude it. "
-    "Return a JSON array of only the qualifying terms, lowercased, deduplicated, max 5 items. "
+    "Find every word or phrase in a user-provided message that is not ordinary, everyday Standard "
+    "English for a typical speaker. Include slang, regional and community-specific speech, internet "
+    "jargon, dialect, non-standard spellings, code-switched terms, uncommon abbreviations, technical "
+    "or community terms, and idioms. Favor recall: include a term whenever it might be unfamiliar or "
+    "non-standard, even if uncertain. For example, `nize` is Toronto slang and should be included. "
+    "Exclude only proper names, URLs, @mentions, emojis, pure numbers, and ordinary English words "
+    "or phrases. Return a JSON array of every qualifying term, lowercased and deduplicated. "
     "Multi-word phrases are allowed (for example, \"no cap\" or \"glow up\"). "
     "If no slang or jargon is present, output an empty JSON array: []."
 )
@@ -123,6 +122,4 @@ async def extract_terms(text: str) -> list[str]:
         if term and term not in seen:
             seen.add(term)
             out.append(term)
-        if len(out) >= 5:
-            break
     return out

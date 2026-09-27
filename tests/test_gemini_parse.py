@@ -5,16 +5,26 @@ from slangify.sources import gemini
 from slangify.sources.gemini import EXTRACT_PROMPT, SYSTEM_PROMPT, _parse_json_array
 
 
-def test_prompts_exclude_non_slang_terms():
+def test_prompts_target_everyday_standard_english_boundary():
     for prompt in (SYSTEM_PROMPT, EXTRACT_PROMPT):
-        assert "ordinary words" in prompt
-        assert "When uncertain, exclude it." in prompt
+        assert "not ordinary, everyday Standard English" in prompt
+        assert "Favor recall" in prompt
+        assert "even if uncertain" in prompt
 
 
 def test_prompts_include_regional_slang():
     for prompt in (SYSTEM_PROMPT, EXTRACT_PROMPT):
-        assert "regional and community-specific spoken slang" in prompt
+        assert "regional and community-specific speech" in prompt
         assert "`nize` is Toronto slang" in prompt
+
+
+def test_extract_terms_is_not_capped_at_five(monkeypatch):
+    async def call(system_prompt, text):
+        return '["one", "two", "three", "four", "five", "six"]'
+
+    monkeypatch.setattr(gemini, "_call", call)
+
+    assert asyncio.run(gemini.extract_terms("message")) == ["one", "two", "three", "four", "five", "six"]
 
 
 def test_falls_back_after_transient_gemini_error(monkeypatch):
